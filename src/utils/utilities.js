@@ -1,1 +1,1 @@
-export const baseUrl = "http://localhost:8000"
+export const baseUrl = "https://enrich-backend-regp.onrender.com/api/health"
