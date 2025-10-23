@@ -65,41 +65,6 @@ export const useTest = (testId) => {
 
   return { test, loading, error, retry };
 };
-// export const useTestStatus = (testId, pollInterval = 10000) => {
-//   const [test, setTest] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const [polling, setPolling] = useState(true);
-
-//   useEffect(() => {
-//     const fetchStatus = async () => {
-//       try {
-//         const response = await axios.get(`${baseUrl}/api/tests/status/${testId}`);
-//         if (response.data.success) {
-//           setTest(response.data.data);
-          
-//           if (['completed', 'failed'].includes(response.data.data.status)) {
-//             setPolling(false);
-//           }
-//         }
-//       } catch (error) {
-//         console.error('Error fetching test status:', error);
-//         setPolling(false);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchStatus();
-
-//     if (polling) {
-//       const interval = setInterval(fetchStatus, pollInterval);
-//       return () => clearInterval(interval);
-//     }
-//   }, [testId, polling, pollInterval]);
-
-//   return { test, loading, polling };
-// };
-
 
 
 export const useTestStatus = (testId, pollInterval = 10000) => {
