@@ -564,7 +564,7 @@ const CreateTest = () => {
               <div className="space-y-3">
                 {testData.testInboxes.map((inbox, index) => (
                   <div
-                    key={inbox.provider}
+                    key={inbox.email}
                     className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
                   >
                     <div className="flex items-center space-x-3">
