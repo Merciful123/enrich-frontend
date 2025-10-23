@@ -55,7 +55,7 @@ export const useTest = (testId) => {
     };
   }, [fetchTest]);
 
-  // ✅ ADDED: Retry function for better UX
+  // ADDED: Retry function for better UX
   const retry = useCallback(() => {
     const abortController = new AbortController();
     const signal = abortController.signal;
@@ -108,7 +108,7 @@ export const useTestStatus = (testId, pollInterval = 10000) => {
   const [polling, setPolling] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ FIXED: Use useCallback to prevent infinite re-renders
+  //  Use useCallback to prevent infinite re-renders
   const fetchStatus = useCallback(async () => {
     if (!testId) return;
     
@@ -118,7 +118,7 @@ export const useTestStatus = (testId, pollInterval = 10000) => {
         const testData = response.data.data;
         setTest(testData);
         
-        // ✅ FIXED: Stop polling for these statuses
+        // Stop polling for these statuses
         if (['completed', 'failed', 'expired'].includes(testData.status)) {
           setPolling(false);
         }
@@ -128,7 +128,7 @@ export const useTestStatus = (testId, pollInterval = 10000) => {
     } catch (error) {
       console.error('Error fetching test status:', error);
       setError('Failed to fetch test status');
-      setPolling(false); // ✅ Stop polling on error
+      setPolling(false); // Stop polling on error
     } finally {
       setLoading(false);
     }

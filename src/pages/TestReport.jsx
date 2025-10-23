@@ -14,40 +14,32 @@ import {
   RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { useTestStatus } from '../hooks/useTest.js';
 
 
+
+
 const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
-
   const params = useParams();
-
-  // const navigate = useNavigate();
-
   const testId = testIdFromProps || params.testId;
   
   console.log('TestReport - Test ID:', testId, 'isSharedView:', isSharedView);
 
-  // Use proper polling configuration
-  
   const { test, loading, error: statusError } = useTestStatus(
     testId, 
-    isSharedView ? 0 : 5000 // 5 seconds for normal view, no polling for shared view
+    isSharedView ? 0 : 5000
   );
-  
   
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Handle test not found or errors
   useEffect(() => {
     if (statusError) {
       toast.error(statusError);
     }
   }, [statusError]);
 
-  //  Improved copy function
   const copyShareLink = async () => {
     if (test?.shareableLink) {
       try {
@@ -56,7 +48,6 @@ const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
         toast.success('Share link copied to clipboard!');
         setTimeout(() => setCopied(false), 2000);
       } catch (err) {
-        // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = test.shareableLink;
         document.body.appendChild(textArea);
@@ -74,8 +65,8 @@ const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
     }
   };
 
-  //Improved PDF export with better error handling
-  const exportToPDF = async () => {
+  // PDF export using text-based approach (more reliable)
+  const exportToPDFTextBased = async () => {
     if (!test) {
       toast.error('No test data available');
       return;
@@ -83,44 +74,110 @@ const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
 
     try {
       setExporting(true);
-      toast.loading('Generating PDF...', { id: 'pdf-export' });
-      
-      const element = document.getElementById('test-report');
-      if (!element) {
-        throw new Error('Report element not found');
-      }
+      toast.loading('Generating PDF report...', { id: 'pdf-export' });
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let yPosition = 20;
+
+      // Title
+      pdf.setFontSize(20);
+      pdf.setTextColor(33, 33, 33);
+      pdf.text('Email Deliverability Report', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 15;
+
+      // Test Information
+      pdf.setFontSize(12);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Test Code: ${test.testCode}`, 20, yPosition);
+      pdf.text(`Created: ${new Date(test.createdAt).toLocaleString()}`, pageWidth - 20, yPosition, { align: 'right' });
+      yPosition += 20;
+
+      // Score Summary
+      pdf.setFontSize(16);
+      pdf.setTextColor(33, 33, 33);
+      pdf.text('Score Summary', 20, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(12);
+      const scores = [
+        `Overall Deliverability Score: ${test.overallScore}%`,
+        `Inbox Placements: ${test.results.filter(r => r.folder === 'inbox').length}`,
+        `Spam Placements: ${test.results.filter(r => r.folder === 'spam').length}`,
+        `Total Providers Tested: ${test.results.length}`
+      ];
+
+      scores.forEach(score => {
+        if (yPosition > 250) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        pdf.text(score, 25, yPosition);
+        yPosition += 8;
       });
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 190;
-      const pageHeight = 280;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 10;
+      yPosition += 10;
 
-      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // Detailed Results
+      pdf.setFontSize(16);
+      pdf.text('Detailed Results', 20, yPosition);
+      yPosition += 15;
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+      test.results.forEach((result) => {
+        if (yPosition > 250) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        pdf.setFontSize(12);
+        pdf.setTextColor(33, 33, 33);
+        pdf.text(`${result.emailProvider.toUpperCase()}`, 25, yPosition);
+        yPosition += 6;
+
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Email: ${result.emailAddress}`, 30, yPosition);
+        yPosition += 5;
+
+        const statusText = `Status: ${result.status === 'delivered' ? 'Delivered' : result.status === 'not_delivered' ? 'Not Delivered' : 'Error'}`;
+        pdf.text(statusText, 30, yPosition);
+        yPosition += 5;
+
+        if (result.folder && result.folder !== 'not_found') {
+          pdf.text(`Folder: ${result.folder}`, 30, yPosition);
+          yPosition += 5;
+        }
+
+        if (result.error) {
+          pdf.setTextColor(200, 0, 0);
+          pdf.text(`Error: ${result.error}`, 30, yPosition);
+          pdf.setTextColor(100, 100, 100);
+          yPosition += 5;
+        }
+
+        yPosition += 8; // Space between results
+      });
+
+      // Add footer
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150);
+        pdf.text(
+          `Page ${i} of ${totalPages} - Generated on ${new Date().toLocaleString()}`,
+          pageWidth / 2,
+          290,
+          { align: 'center' }
+        );
       }
 
       pdf.save(`email-deliverability-report-${test.testCode}.pdf`);
       toast.success('PDF exported successfully!', { id: 'pdf-export' });
+
     } catch (error) {
       console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF', { id: 'pdf-export' });
+      toast.error('Failed to generate PDF. Please try again.', { id: 'pdf-export' });
     } finally {
       setExporting(false);
     }
@@ -172,7 +229,6 @@ const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
     return names[folder] || folder.charAt(0).toUpperCase() + folder.slice(1);
   };
 
-  // Better loading state
   if (loading && !test) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -185,7 +241,6 @@ const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
     );
   }
 
-  //  Better error handling
   if (statusError || !test) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -257,8 +312,9 @@ const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
                 {copied ? 'Copied!' : 'Share'}
               </button>
               
+              {/* Updated PDF Export Button */}
               <button
-                onClick={exportToPDF}
+                onClick={exportToPDFTextBased} // Using text-based version for reliability
                 disabled={exporting || !test}
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white rounded-md shadow-sm text-sm font-medium hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -273,8 +329,13 @@ const TestReport = ({ testId: testIdFromProps, isSharedView = false }) => {
           </div>
         </div>
 
-        {/* Main Report Content */}
-        <div id="test-report" className="space-y-6">
+        {/* Main Report Content - Added PDF-specific styling */}
+        <div 
+          id="test-report" 
+          className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200"
+          style={{ backgroundColor: '#ffffff' }} // Ensure white background for PDF
+        >
+          {/* Rest of your existing JSX remains exactly the same */}
           {/* Processing Status */}
           {test.status === 'processing' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
