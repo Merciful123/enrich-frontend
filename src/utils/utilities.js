@@ -1,1 +1,1 @@
-export const baseUrl = "http://enrich-backend-regp.onrender.com"
+export const baseUrl = "https://enrich-backend-regp.onrender.com"
